@@ -16,6 +16,7 @@
 
 package com.palantir.remoting3.jaxrs;
 
+import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.palantir.remoting3.clients.ClientConfiguration;
 import com.palantir.remoting3.ext.jackson.ObjectMappers;
@@ -25,8 +26,8 @@ public final class FeignJaxRsClientBuilder extends AbstractFeignJaxRsClientBuild
     private static final ObjectMapper JSON_OBJECT_MAPPER = ObjectMappers.newClientObjectMapper();
     private static final ObjectMapper CBOR_OBJECT_MAPPER = ObjectMappers.newCborClientObjectMapper();
 
-    FeignJaxRsClientBuilder(ClientConfiguration config) {
-        super(config);
+    FeignJaxRsClientBuilder(ClientConfiguration config, MetricRegistry registry) {
+        super(config, registry);
     }
 
     @Override

@@ -16,6 +16,8 @@
 
 package com.palantir.remoting3.retrofit2;
 
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.SharedMetricRegistries;
 import com.google.common.reflect.Reflection;
 import com.palantir.remoting3.clients.ClientConfiguration;
 import com.palantir.remoting3.ext.refresh.Refreshable;
@@ -35,7 +37,13 @@ public final class Retrofit2Client {
      * are of the form: {@code ServiceName/InstanceId (Version)}, e.g. MyServer/12 (1.2.3).
      */
     public static <T> T create(Class<T> serviceClass, String userAgent, ClientConfiguration config) {
-        return new Retrofit2ClientBuilder(config).build(serviceClass, userAgent);
+        return new Retrofit2ClientBuilder(config, SharedMetricRegistries.getOrCreate("remoting"))
+                .build(serviceClass, userAgent);
+    }
+
+    public static <T> T create(Class<T> serviceClass, String userAgent, ClientConfiguration config,
+            MetricRegistry registry) {
+        return new Retrofit2ClientBuilder(config, registry).build(serviceClass, userAgent);
     }
 
     /**

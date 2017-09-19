@@ -16,6 +16,7 @@
 
 package com.palantir.remoting3.okhttp;
 
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.ImmutableList;
 import com.google.common.net.HttpHeaders;
 import com.palantir.remoting.api.config.service.BasicCredentials;
@@ -42,8 +43,9 @@ public final class OkHttpClients {
     private OkHttpClients() {}
 
     /** Creates an OkHttp client from the given {@link ClientConfiguration}. */
-    public static OkHttpClient create(ClientConfiguration config, String userAgent, Class<?> serviceClass) {
-        return builder(config, userAgent, serviceClass).build();
+    public static OkHttpClient create(ClientConfiguration config, String userAgent, Class<?> serviceClass,
+            MetricRegistry registry) {
+        return builder(config, userAgent, serviceClass, registry).build();
     }
 
     /**
@@ -51,11 +53,12 @@ public final class OkHttpClients {
      * <p>
      * TODO(rfink): This method should get removed as soon as Feign and Retrofit clients use the same OkHttp clients.
      */
-    public static OkHttpClient.Builder builder(ClientConfiguration config, String userAgent, Class<?> serviceClass) {
+    public static OkHttpClient.Builder builder(ClientConfiguration config, String userAgent, Class<?> serviceClass,
+            MetricRegistry registry) {
         okhttp3.OkHttpClient.Builder client = new okhttp3.OkHttpClient.Builder();
 
         // response metrics
-        client.addNetworkInterceptor(InstrumentedInterceptor.withDefaultMetricRegistry(serviceClass.getName()));
+        client.addNetworkInterceptor(InstrumentedInterceptor.create(serviceClass.getName(), registry));
 
         // error handling
         client.addInterceptor(SerializableErrorInterceptor.INSTANCE);

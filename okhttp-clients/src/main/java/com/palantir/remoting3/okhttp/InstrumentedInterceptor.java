@@ -76,6 +76,10 @@ public final class InstrumentedInterceptor implements Interceptor {
         return response;
     }
 
+    static InstrumentedInterceptor create(String name, MetricRegistry registry) {
+        return new InstrumentedInterceptor(registry, name);
+    }
+
     static InstrumentedInterceptor withDefaultMetricRegistry(String name) {
         MetricRegistry registry = SharedMetricRegistries.tryGetDefault();
         if (registry != null) {

@@ -16,6 +16,8 @@
 
 package com.palantir.remoting3.jaxrs;
 
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.SharedMetricRegistries;
 import com.google.common.reflect.Reflection;
 import com.palantir.remoting3.clients.ClientConfiguration;
 import com.palantir.remoting3.ext.refresh.Refreshable;
@@ -30,7 +32,13 @@ public final class JaxRsScalaClient {
 
     /** See {@link JaxRsClient}. */
     public static <T> T create(Class<T> serviceClass, String userAgent, ClientConfiguration config) {
-        return new FeignJaxRsScalaClientBuilder(config).build(serviceClass, userAgent);
+        return new FeignJaxRsScalaClientBuilder(config, SharedMetricRegistries.getOrCreate("remoting"))
+                .build(serviceClass, userAgent);
+    }
+
+    public static <T> T create(Class<T> serviceClass, String userAgent, ClientConfiguration config,
+            MetricRegistry registry) {
+        return new FeignJaxRsScalaClientBuilder(config, registry).build(serviceClass, userAgent);
     }
 
     /** See {@link JaxRsClient}. */

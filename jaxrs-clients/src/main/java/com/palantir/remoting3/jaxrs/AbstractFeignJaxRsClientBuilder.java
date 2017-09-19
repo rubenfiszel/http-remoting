@@ -16,6 +16,7 @@
 
 package com.palantir.remoting3.jaxrs;
 
+import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.palantir.remoting3.clients.ClientConfiguration;
@@ -55,11 +56,13 @@ abstract class AbstractFeignJaxRsClientBuilder {
      * when retrying a request.
      */
     private final String primaryUri;
+    private final MetricRegistry registry;
 
-    AbstractFeignJaxRsClientBuilder(ClientConfiguration config) {
+    AbstractFeignJaxRsClientBuilder(ClientConfiguration config, MetricRegistry registry) {
         Preconditions.checkArgument(!config.uris().isEmpty(), "Must provide at least one service URI");
         this.config = config;
         this.primaryUri = config.uris().get(0);
+        this.registry = registry;
     }
 
     protected abstract ObjectMapper getObjectMapper();
@@ -79,7 +82,7 @@ abstract class AbstractFeignJaxRsClientBuilder {
                                                 cborObjectMapper,
                                                 new JacksonEncoder(objectMapper)))))
                 .decoder(createDecoder(objectMapper, cborObjectMapper))
-                .client(new OkHttpClient(OkHttpClients.create(config, userAgent, serviceClass)))
+                .client(new OkHttpClient(OkHttpClients.create(config, userAgent, serviceClass, registry)))
                 .options(createRequestOptions())
                 .logLevel(Logger.Level.NONE)  // we use OkHttp interceptors for logging. (note that NONE is the default)
                 .retryer(new Retryer.Default(0, 0, 1))  // use OkHttp retry mechanism only

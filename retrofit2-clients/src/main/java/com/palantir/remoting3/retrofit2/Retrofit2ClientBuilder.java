@@ -16,6 +16,7 @@
 
 package com.palantir.remoting3.retrofit2;
 
+import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.palantir.remoting3.clients.ClientConfiguration;
@@ -33,10 +34,12 @@ public final class Retrofit2ClientBuilder {
     private static final ObjectMapper OBJECT_MAPPER = ObjectMappers.newClientObjectMapper();
 
     private final ClientConfiguration config;
+    private final MetricRegistry registry;
 
-    public Retrofit2ClientBuilder(ClientConfiguration config) {
+    public Retrofit2ClientBuilder(ClientConfiguration config, MetricRegistry registry) {
         Preconditions.checkArgument(!config.uris().isEmpty(), "Cannot construct retrofit client with empty URI list");
         this.config = config;
+        this.registry = registry;
     }
 
     public <T> T build(Class<T> serviceClass, String userAgent) {
@@ -59,7 +62,7 @@ public final class Retrofit2ClientBuilder {
     }
 
     private OkHttpClient createOkHttpClient(String userAgent, Class<?> serviceClass) {
-        OkHttpClient.Builder client = OkHttpClients.builder(config, userAgent, serviceClass);
+        OkHttpClient.Builder client = OkHttpClients.builder(config, userAgent, serviceClass, registry);
 
         // retry configuration
         // TODO(rfink): Consolidate this with the MultiServerRetry thing.
