@@ -18,15 +18,13 @@ package com.palantir.remoting3.okhttp;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import okhttp3.Call;
-import okhttp3.Callback;
 import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -40,12 +38,13 @@ public class InterruptibleCallTest {
     public void when_execute_is_called_and_the_thread_interrupted_the_underlying_call_should_be_cancelled()
             throws IOException, InterruptedException {
 
-        CountDownLatch underlyingEnqueueCalled = new CountDownLatch(1);
+        CountDownLatch underlyingExecuteCalled = new CountDownLatch(1);
 
-        doAnswer(invocation -> {
-            underlyingEnqueueCalled.countDown();
+        when(call.execute()).thenAnswer(invocation -> {
+            underlyingExecuteCalled.countDown();
+            Thread.sleep(999999999L);
             return null;
-        }).when(call).enqueue(any());
+        });
 
         Thread thread = new Thread(() -> {
             try {
@@ -57,7 +56,7 @@ public class InterruptibleCallTest {
 
         thread.start();
 
-        underlyingEnqueueCalled.await();
+        underlyingExecuteCalled.await();
         thread.interrupt();
 
         thread.join();
@@ -66,10 +65,9 @@ public class InterruptibleCallTest {
 
     @Test(timeout = 1_000)
     public void when_execute_is_called_and_the_call_succeeds_the_response_should_be_returned() throws IOException {
-        Call mockCall = mock(Call.class);
         Response mockResponse = someResponse();
 
-        whenEnqueued(callback -> callback.onResponse(mockCall, mockResponse));
+        when(call.execute()).thenReturn(mockResponse);
 
         Response response = interruptibleCall.execute();
 
@@ -78,10 +76,9 @@ public class InterruptibleCallTest {
 
     @Test(timeout = 1_000)
     public void when_execute_is_called_and_the_call_fails_the_exception_should_be_thrown() throws IOException {
-        Call mockCall = mock(Call.class);
         IOException exception = new IOException("something bad happened");
 
-        whenEnqueued(callback -> callback.onFailure(mockCall, exception));
+        when(call.execute()).thenThrow(exception);
 
         try {
             interruptibleCall.execute();
@@ -89,14 +86,6 @@ public class InterruptibleCallTest {
         } catch (IOException e) {
             assertThat(e).isEqualTo(exception);
         }
-    }
-
-    private void whenEnqueued(CheckedConsumer<Callback> callbackConsumer) {
-        doAnswer(invocation -> {
-            Callback callback = invocation.getArgumentAt(0, Callback.class);
-            callbackConsumer.accept(callback);
-            return null;
-        }).when(call).enqueue(any());
     }
 
     private Response someResponse() {

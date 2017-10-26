@@ -20,7 +20,6 @@ import com.google.common.util.concurrent.SettableFuture;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import okhttp3.Call;
-import okhttp3.Callback;
 import okhttp3.Response;
 
 public final class InterruptibleCall extends ForwardingCall {
@@ -33,22 +32,21 @@ public final class InterruptibleCall extends ForwardingCall {
     public Response execute() throws IOException {
         SettableFuture<Response> future = SettableFuture.create();
 
-        getDelegate().enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException ioException) {
-                future.setException(ioException);
+        Thread thread = new Thread(() -> {
+            try {
+                future.set(getDelegate().execute());
+            } catch (Exception e) {
+                future.setException(e);
             }
+        }, Thread.currentThread().getName() + "-InterruptibleCall");
 
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                future.set(response);
-            }
-        });
+        thread.start();
 
         try {
             return future.get();
         } catch (InterruptedException e) {
             getDelegate().cancel();
+            thread.interrupt();
             Thread.currentThread().interrupt();
             throw new IOException("Thread was interrupted, cancelling call", e);
         } catch (ExecutionException e) {
