@@ -99,7 +99,4 @@ public class InterruptibleCallTest {
                 .build();
     }
 
-    interface CheckedConsumer<T> {
-        void accept(T value) throws Exception;
-    }
 }
