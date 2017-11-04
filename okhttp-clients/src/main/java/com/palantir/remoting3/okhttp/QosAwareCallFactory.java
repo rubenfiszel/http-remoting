@@ -16,7 +16,6 @@
 
 package com.palantir.remoting3.okhttp;
 
-import com.google.common.base.Preconditions;
 import com.palantir.remoting.api.errors.QosException;
 import java.io.IOException;
 import okhttp3.Call;
@@ -36,14 +35,32 @@ public class QosAwareCallFactory {
         this.callFactory = callFactory;
     }
 
+    // TODO(nziebart): visitor should support throwing IOException
     Call nextCall(Call previous, QosException exception) throws IOException {
-        if (exception instanceof QosException.Throttle || exception instanceof QosException.Unavailable) {
-            return previous.clone();
+        if (exception instanceof QosException.Throttle) {
+            return nextCall(previous, (QosException.Throttle) exception);
+        }
+        if (exception instanceof QosException.Unavailable) {
+            return nextCall(previous, (QosException.Unavailable) exception);
+        }
+        if (exception instanceof QosException.RetryOther) {
+            return nextCall(previous, (QosException.RetryOther) exception);
         }
 
-        Preconditions.checkState(exception instanceof QosException.RetryOther,
-                "unknown exception type: " + exception.getClass());
-        return nextCall(previous, (QosException.RetryOther) exception);
+        throw new IllegalStateException("unknown exception type: " + exception.getClass());
+    }
+
+    private Call nextCall(Call previous, QosException.Throttle exception) throws IOException {
+        return previous.clone();
+    }
+
+    private Call nextCall(Call previous, QosException.Unavailable exception) throws IOException {
+        Request previousRequest = previous.request();
+        // TODO(nziebart): why is this method allowed to return empty?
+        HttpUrl redirectTo = urls.redirectToNext(previousRequest.url())
+                .orElseThrow(() -> new IOException("Failed to determine valid next URL"));
+
+        return redirectedCall(previousRequest, redirectTo);
     }
 
     private Call nextCall(Call previous, QosException.RetryOther exception) throws IOException {
@@ -57,6 +74,10 @@ public class QosAwareCallFactory {
                 .orElseThrow(() -> new IOException("Failed to determine valid redirect URL for Location "
                         + "header '" + exception.getRedirectTo() + "' and base URLs " + urls.getBaseUrls()));
 
+        return redirectedCall(previousRequest, redirectTo);
+    }
+
+    private Call redirectedCall(Request previousRequest, HttpUrl redirectTo) {
         Request newRequest = previousRequest.newBuilder().url(redirectTo).build();
         return callFactory.newCall(newRequest);
     }
