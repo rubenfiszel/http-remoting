@@ -106,7 +106,7 @@ public final class OkHttpClients {
 
         // Error handling, retry/failover, etc: the order of these matters.
         client.addInterceptor(SerializableErrorInterceptor.INSTANCE);
-        client.addInterceptor(QosRetryLaterInterceptor.INSTANCE);
+        client.addInterceptor(QosInterceptor.INSTANCE);
 
         client.addInterceptor(CurrentUrlInterceptor.create(urls));
         client.addInterceptor(MultiServerRetryInterceptor.create(urls, config.maxNumRetries()));

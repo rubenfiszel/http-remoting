@@ -47,7 +47,7 @@ interface CallRetryer {
      * The end-to-end flow for handling {@link QosException}s in an OkHttp client is as follows:
      * <ul>
      *     <li>
-     *         {@link QosRetryLaterInterceptor} detected HTTP status codes pertaining to server-side
+     *         {@link QosInterceptor} detected HTTP status codes pertaining to server-side
      *         {@link QosException}s (e.g., 429 for retry, 503 for unavailable, etc) and throws a corresponding
      *         {@link QosIoException}.
      *     </li>

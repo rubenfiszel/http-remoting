@@ -20,6 +20,8 @@ import com.google.common.net.HttpHeaders;
 import com.palantir.logsafe.SafeArg;
 import com.palantir.remoting.api.errors.QosException;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.time.Duration;
 import okhttp3.Interceptor;
 import okhttp3.Response;
@@ -34,15 +36,17 @@ import org.slf4j.LoggerFactory;
  * See {@link CallRetryer} for an end-to-end explanation of http-remoting specific client-side error
  * handling.
  */
-final class QosRetryLaterInterceptor implements Interceptor {
-    private static final Logger log = LoggerFactory.getLogger(QosRetryLaterInterceptor.class);
+final class QosInterceptor implements Interceptor {
+    private static final Logger log = LoggerFactory.getLogger(QosInterceptor.class);
 
-    static final QosRetryLaterInterceptor INSTANCE = new QosRetryLaterInterceptor();
+    static final QosInterceptor INSTANCE = new QosInterceptor();
 
     @Override
     public Response intercept(Chain chain) throws IOException {
         Response response = chain.proceed(chain.request());
         switch (response.code()) {
+            case 328:
+                throw handle328(response);
             case 429:
                 throw handle429(response);
             case 503:
@@ -50,6 +54,20 @@ final class QosRetryLaterInterceptor implements Interceptor {
         }
 
         return response;
+    }
+
+    private IOException handle328(Response response) {
+        String locationHeader = response.header(HttpHeaders.LOCATION);
+        if (locationHeader == null) {
+            return new IOException("Retrieved HTTP status code 308 without Location header, cannot perform "
+                    + "redirect. This appears to be a server-side protocol violation.");
+        }
+
+        try {
+            return new QosIoException(QosException.retryOther(new URL(locationHeader)), response);
+        } catch (MalformedURLException ex) {
+            return new IOException("Retrieved HTTP status code 308 with malformed URL");
+        }
     }
 
     private static IOException handle429(Response response) {

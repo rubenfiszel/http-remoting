@@ -35,7 +35,7 @@ import org.mockito.runners.MockitoJUnitRunner;
 public final class QosRetryLaterInterceptorTest extends TestBase {
 
     private static final Request REQUEST = new Request.Builder().url("http://127.0.0.1").build();
-    private static final Interceptor INTERCEPTOR = QosRetryLaterInterceptor.INSTANCE;
+    private static final Interceptor INTERCEPTOR = QosInterceptor.INSTANCE;
 
     @Mock
     private Interceptor.Chain chain;
