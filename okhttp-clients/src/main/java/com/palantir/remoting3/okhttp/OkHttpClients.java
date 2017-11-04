@@ -31,6 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import okhttp3.Call;
 import okhttp3.ConnectionPool;
@@ -57,8 +58,9 @@ public final class OkHttpClients {
      * ClientConfiguration#uris URIs} are initialized in random order.
      */
     public static OkHttpClient create(ClientConfiguration config, UserAgent userAgent, Class<?> serviceClass) {
+        UrlSelector urls = UrlSelectorImpl.create(config.uris(), true /* randomize URL order */);
         return createInternal(
-                config, userAgent, serviceClass, createQosHandler(config), true /* randomize URL order */);
+                config, userAgent, serviceClass, createQosHandler(config, urls), urls);
     }
 
     /**
@@ -75,25 +77,28 @@ public final class OkHttpClients {
     static QosIoExceptionAwareOkHttpClient withCustomQosHandler(
             ClientConfiguration config, UserAgent userAgent, Class<?> serviceClass,
             Supplier<CallRetryer> handlerFactory) {
-        return createInternal(config, userAgent, serviceClass, handlerFactory, true);
+        UrlSelector urls = UrlSelectorImpl.create(config.uris(), true);
+        return createInternal(config, userAgent, serviceClass, ignored -> handlerFactory.get(), urls);
     }
 
     @VisibleForTesting
     static QosIoExceptionAwareOkHttpClient withStableUris(
             ClientConfiguration config, UserAgent userAgent, Class<?> serviceClass) {
-        return createInternal(config, userAgent, serviceClass, createQosHandler(config), false);
+        UrlSelector urls = UrlSelectorImpl.create(config.uris(), false);
+        return createInternal(config, userAgent, serviceClass, createQosHandler(config, urls), urls);
     }
 
-    private static Supplier<CallRetryer> createQosHandler(ClientConfiguration config) {
-        return () -> new QosAwareCallRetryer(
+    private static Function<Call.Factory, CallRetryer> createQosHandler(ClientConfiguration config, UrlSelector urls) {
+        return factory -> new QosAwareCallRetryer(
                 new ExponentialBackoff(config.maxNumRetries(), config.backoffSlotSize(), new Random()),
                 BackoffSleeper.DEFAULT,
-                asyncRetryExecutor);
+                asyncRetryExecutor,
+                new QosAwareCallFactory(urls, factory));
     }
 
     private static QosIoExceptionAwareOkHttpClient createInternal(
             ClientConfiguration config, UserAgent userAgent, Class<?> serviceClass,
-            Supplier<CallRetryer> handlerFactory, boolean randomizeUrlOrder) {
+            Function<Call.Factory, CallRetryer> handlerFactory, UrlSelector urls) {
         OkHttpClient.Builder client = new OkHttpClient.Builder();
 
         // response metrics
@@ -102,9 +107,8 @@ public final class OkHttpClients {
         // Error handling, retry/failover, etc: the order of these matters.
         client.addInterceptor(SerializableErrorInterceptor.INSTANCE);
         client.addInterceptor(QosRetryLaterInterceptor.INSTANCE);
-        UrlSelector urls = UrlSelectorImpl.create(config.uris(), randomizeUrlOrder);
+
         client.addInterceptor(CurrentUrlInterceptor.create(urls));
-        client.addInterceptor(new QosRetryOtherInterceptor(urls));
         client.addInterceptor(MultiServerRetryInterceptor.create(urls, config.maxNumRetries()));
         client.followRedirects(false);  // We implement our own redirect logic.
 
@@ -143,7 +147,8 @@ public final class OkHttpClients {
         // dispatcher with static executor service
         client.dispatcher(createDispatcher());
 
-        return new QosIoExceptionAwareOkHttpClient(client.build(), handlerFactory);
+        OkHttpClient okHttpClient = client.build();
+        return new QosIoExceptionAwareOkHttpClient(client.build(), () -> handlerFactory.apply(okHttpClient));
     }
 
     /**

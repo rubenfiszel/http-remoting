@@ -39,23 +39,27 @@ class QosAwareCallRetryer implements CallRetryer {
     private final QosExceptionBackoffStrategy backoffStrategy;
     private final BackoffSleeper backoffSleeper;
     private final ScheduledExecutorService scheduler;
+    private final QosAwareCallFactory callFactory;
 
     QosAwareCallRetryer(
             BackoffStrategy backoffStrategy,
             BackoffSleeper backoffSleeper,
-            ScheduledExecutorService asyncRetryScheduler) {
+            ScheduledExecutorService asyncRetryScheduler,
+            QosAwareCallFactory callFactory) {
         this.backoffStrategy = new QosExceptionBackoffStrategy(backoffStrategy);
         this.backoffSleeper = backoffSleeper;
         this.scheduler = asyncRetryScheduler;
+        this.callFactory = callFactory;
     }
 
     @Override
     public Response executeWithRetry(Call originalCall) throws IOException {
-        for (Call call = originalCall;; call = call.clone()) {
+        for (Call call = originalCall;;) {
             try {
                 return call.execute();
             } catch (QosIoException e) {
                 backoffOrRethrow(e);
+                call = callFactory.nextCall(call, e.getQosException());
             }
         }
     }
@@ -76,14 +80,15 @@ class QosAwareCallRetryer implements CallRetryer {
         scheduler.schedule(() -> call.enqueue(qosAwareCallback), backoff.toNanos(), TimeUnit.NANOSECONDS);
     }
 
-    private void backoffAsyncOrFail(Call call, QosIoException qosIoException, Callback callback) {
+    private void backoffAsyncOrFail(Call call, QosIoException qosIoException, Callback callback) throws IOException {
         Optional<Duration> backoff = backoffStrategy.nextBackoff(qosIoException);
-
-        if (backoff.isPresent()) {
-            enqueueAsyncWithRetry(call, callback, backoff.get());
-        } else {
+        if (!backoff.isPresent()) {
             callback.onFailure(call, qosIoException);
+            return;
         }
+
+        Call nextCall = callFactory.nextCall(call, qosIoException.getQosException());
+        enqueueAsyncWithRetry(nextCall, callback, backoff.get());
     }
 
     class QosAwareCallback implements Callback {
@@ -102,6 +107,8 @@ class QosAwareCallRetryer implements CallRetryer {
 
             try {
                 backoffAsyncOrFail(call.clone(), (QosIoException) ioException, delegate);
+            } catch (IOException e) {
+                delegate.onFailure(call, e);
             } catch (Throwable t) {
                 // This is a background thread, so we must propagate all exceptions to the callback
                 delegate.onFailure(call, new IOException("Failed to execute request", t));
