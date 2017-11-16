@@ -56,16 +56,17 @@ final class QosRetryLaterInterceptor implements Interceptor {
         String duration = response.header(HttpHeaders.RETRY_AFTER);
         if (duration == null) {
             log.debug("Received 429 response, throwing QosException to trigger delayed retry");
-            return new QosIoException(QosException.throttle(), response);
+            return new QosIoException(QosException.throttle(), response.code());
         } else {
             log.debug("Received 429 response, throwing QosException to trigger delayed retry",
                     SafeArg.of("duration", duration));
-            return new QosIoException(QosException.throttle(Duration.ofSeconds(Long.parseLong(duration))), response);
+            return new QosIoException(
+                    QosException.throttle(Duration.ofSeconds(Long.parseLong(duration))), response.code());
         }
     }
 
     private static IOException handle503(Response response) {
         log.debug("Received 503 response, throwing QosException to trigger delayed retry");
-        return new QosIoException(QosException.unavailable(), response);
+        return new QosIoException(QosException.unavailable(), response.code());
     }
 }

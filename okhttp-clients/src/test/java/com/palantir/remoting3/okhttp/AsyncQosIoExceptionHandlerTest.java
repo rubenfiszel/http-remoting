@@ -80,7 +80,7 @@ public final class AsyncQosIoExceptionHandlerTest extends TestBase {
 
     @Test
     public void testThrottle_withRetryAfter_reschedules() throws Exception {
-        QosIoException exception = new QosIoException(QosException.throttle(BACKOFF_10SECS.get()), RESPONSE);
+        QosIoException exception = new QosIoException(QosException.throttle(BACKOFF_10SECS.get()), RESPONSE.code());
         ListenableFuture<Response> response = handler.handle(call, exception);
 
         scheduler.tick(5, TimeUnit.SECONDS);
@@ -97,7 +97,7 @@ public final class AsyncQosIoExceptionHandlerTest extends TestBase {
     @Test
     public void testThrottle_withoutRetryAfter_reschedulesByBackoffDuration() throws Exception {
         when(backoff.nextBackoff()).thenReturn(BACKOFF_10SECS);
-        QosIoException exception = new QosIoException(QosException.throttle(BACKOFF_10SECS.get()), RESPONSE);
+        QosIoException exception = new QosIoException(QosException.throttle(BACKOFF_10SECS.get()), RESPONSE.code());
         ListenableFuture<Response> response = handler.handle(call, exception);
 
         scheduler.tick(5, TimeUnit.SECONDS);
@@ -114,7 +114,7 @@ public final class AsyncQosIoExceptionHandlerTest extends TestBase {
     @Test
     public void testThrottle_withoutRetryAfter_failsIfBackoffIsEmpty() throws Exception {
         when(backoff.nextBackoff()).thenReturn(NO_BACKOFF);
-        QosIoException exception = new QosIoException(QosException.throttle(), RESPONSE);
+        QosIoException exception = new QosIoException(QosException.throttle(), RESPONSE.code());
         assertThatThrownBy(() -> handler.handle(call, exception).get(1, TimeUnit.SECONDS))
                 .hasCause(exception);
         verifyNoMoreInteractions(delegateCall);
@@ -122,7 +122,7 @@ public final class AsyncQosIoExceptionHandlerTest extends TestBase {
 
     @Test
     public void testRetryOther_notHandled() throws Exception {
-        QosIoException exception = new QosIoException(QosException.retryOther(new URL("http://foo")), RESPONSE);
+        QosIoException exception = new QosIoException(QosException.retryOther(new URL("http://foo")), RESPONSE.code());
         assertThatThrownBy(() -> handler.handle(call, exception).get(1, TimeUnit.SECONDS))
                 .hasMessage("java.io.IOException: Internal error, did not expect to handle "
                         + "RetryOther exception in handler")
@@ -133,7 +133,7 @@ public final class AsyncQosIoExceptionHandlerTest extends TestBase {
     @Test
     public void testUnavailable_doesNotScheduleWhenBackoffIsEmpty() throws Exception {
         when(backoff.nextBackoff()).thenReturn(NO_BACKOFF);
-        QosIoException exception = new QosIoException(QosException.unavailable(), RESPONSE);
+        QosIoException exception = new QosIoException(QosException.unavailable(), RESPONSE.code());
         assertThatThrownBy(() -> handler.handle(call, exception).get(1, TimeUnit.SECONDS))
                 .hasCause(exception);
         verifyNoMoreInteractions(delegateCall);
@@ -142,7 +142,7 @@ public final class AsyncQosIoExceptionHandlerTest extends TestBase {
     @Test
     public void testUnavailable_reschedulesByBackoffDuration() throws Exception {
         when(backoff.nextBackoff()).thenReturn(BACKOFF_10SECS);
-        QosIoException exception = new QosIoException(QosException.unavailable(), RESPONSE);
+        QosIoException exception = new QosIoException(QosException.unavailable(), RESPONSE.code());
         ListenableFuture<Response> response = handler.handle(call, exception);
 
         scheduler.tick(5, TimeUnit.SECONDS);

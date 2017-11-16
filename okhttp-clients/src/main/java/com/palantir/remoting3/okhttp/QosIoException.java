@@ -32,20 +32,19 @@ import okhttp3.Response;
 class QosIoException extends IOException {
 
     private final QosException qosException;
-    private final Response response;
+    private final int responseCode;
 
-    QosIoException(QosException qosException, Response response) {
-        super("Failed to complete the request due to a server-side QoS condition: " + response.code(), qosException);
+    QosIoException(QosException qosException, int responseCode) {
+        super("Failed to complete the request due to a server-side QoS condition: " + responseCode, qosException);
         this.qosException = qosException;
-        this.response = response;
+        this.responseCode = responseCode;
     }
 
     QosException getQosException() {
         return qosException;
     }
 
-    /** The OkHttp response that gave rise to this exception. */
-    public Response getResponse() {
-        return response;
+    int getResponseCode() {
+        return responseCode;
     }
 }

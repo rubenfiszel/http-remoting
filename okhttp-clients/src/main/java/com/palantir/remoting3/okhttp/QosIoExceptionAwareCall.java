@@ -48,7 +48,7 @@ public final class QosIoExceptionAwareCall extends ForwardingCall {
                 Throwable cause = executionException.getCause();
                 if (cause instanceof QosIoException) {
                     QosIoException qosIoException = (QosIoException) cause;
-                    throw new QosIoException(qosIoException.getQosException(), qosIoException.getResponse());
+                    throw new QosIoException(qosIoException.getQosException(), qosIoException.getResponseCode());
                 } else if (cause instanceof RemoteException) {
                     // TODO(jbaker): don't want to rethrow cause, but need to make changes to remoting-api.
                     throw (RemoteException) cause;
@@ -87,7 +87,7 @@ public final class QosIoExceptionAwareCall extends ForwardingCall {
                             if (throwable instanceof QosIoException) {
                                 QosIoException qosIoException = (QosIoException) throwable;
                                 responseCallback.onFailure(call, new QosIoException(
-                                        qosIoException.getQosException(), qosIoException.getResponse()));
+                                        qosIoException.getQosException(), qosIoException.getResponseCode()));
                             } else {
                                 responseCallback.onFailure(
                                         call, new IOException("Failed to execute request", throwable));

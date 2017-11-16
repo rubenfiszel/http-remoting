@@ -99,7 +99,7 @@ public final class OkHttpClientsTest extends TestBase {
 
     @Test
     public void interceptsAndHandlesQosIoExceptions_propagatesQosIoExceptions() throws Exception {
-        QosIoException qosIoException = new QosIoException(QosException.unavailable(), responseWithCode(REQUEST, 503));
+        QosIoException qosIoException = new QosIoException(QosException.unavailable(), 503);
         when(handler.handle(any(), any())).thenReturn(Futures.immediateFailedFuture(qosIoException));
         server.enqueue(new MockResponse().setResponseCode(503));
 
@@ -107,7 +107,7 @@ public final class OkHttpClientsTest extends TestBase {
         assertThatThrownBy(call::execute)
                 .hasMessage("Failed to complete the request due to a server-side QoS condition: 503")
                 .isInstanceOfSatisfying(QosIoException.class, actualException -> {
-                    assertThat(actualException.getResponse()).isEqualTo(qosIoException.getResponse());
+                    assertThat(actualException.getResponseCode()).isEqualTo(qosIoException.getResponseCode());
                     assertThat(actualException.getQosException()).isEqualTo(qosIoException.getQosException());
                 });
         verify(handler).handle(any(), any());

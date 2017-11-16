@@ -60,7 +60,7 @@ public final class QosRetryLaterInterceptorTest extends TestBase {
 
         assertThatThrownBy(() -> INTERCEPTOR.intercept(chain))
                 .isInstanceOfSatisfying(QosIoException.class, e -> {
-                    assertThat(e.getResponse()).isEqualTo(response);
+                    assertThat(e.getResponseCode()).isEqualTo(response.code());
                     assertThat(e.getQosException()).isInstanceOfSatisfying(QosException.Throttle.class,
                             throttleException -> assertThat(throttleException.getRetryAfter()).isEmpty());
                 });
@@ -73,7 +73,7 @@ public final class QosRetryLaterInterceptorTest extends TestBase {
 
         assertThatThrownBy(() -> INTERCEPTOR.intercept(chain))
                 .isInstanceOfSatisfying(QosIoException.class, e -> {
-                    assertThat(e.getResponse()).isEqualTo(response);
+                    assertThat(e.getResponseCode()).isEqualTo(response.code());
                     assertThat(e.getQosException()).isInstanceOfSatisfying(QosException.Throttle.class,
                             throttleException ->
                                     assertThat(throttleException.getRetryAfter()).contains(Duration.ofMinutes(2)));
@@ -87,7 +87,7 @@ public final class QosRetryLaterInterceptorTest extends TestBase {
 
         assertThatThrownBy(() -> INTERCEPTOR.intercept(chain))
                 .isInstanceOfSatisfying(QosIoException.class, e -> {
-                    assertThat(e.getResponse()).isEqualTo(response);
+                    assertThat(e.getResponseCode()).isEqualTo(response.code());
                     assertThat(e.getQosException()).isInstanceOf(QosException.Unavailable.class);
                 });
     }
