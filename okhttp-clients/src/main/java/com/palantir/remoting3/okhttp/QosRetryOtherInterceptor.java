@@ -60,6 +60,11 @@ class QosRetryOtherInterceptor implements Interceptor {
             if (response.code() != 308) {
                 return response;
             } else {
+                priorResponse = response.newBuilder()
+                        .body(null)
+                        .build();
+                response.close();
+
                 String locationHeader = response.header(HttpHeaders.LOCATION);
                 if (locationHeader == null) {
                     throw new IOException("Retrieved HTTP status code 308 without Location header, cannot perform "
@@ -74,7 +79,6 @@ class QosRetryOtherInterceptor implements Interceptor {
                 log.debug("Received 308 response, retrying host at advertised location",
                         SafeArg.of("location", locationHeader));
                 currentRequest = currentRequest.newBuilder().url(redirectTo).build();
-                priorResponse = response;
                 numRedirects += 1;
             }
         }

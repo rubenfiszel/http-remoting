@@ -44,9 +44,9 @@ final class QosRetryLaterInterceptor implements Interceptor {
         Response response = chain.proceed(chain.request());
         switch (response.code()) {
             case 429:
-                throw handle429(response);
+                throw throwException(response, handle429(response));
             case 503:
-                throw handle503(response);
+                throw throwException(response, handle503(response));
         }
 
         return response;
@@ -68,5 +68,11 @@ final class QosRetryLaterInterceptor implements Interceptor {
     private static IOException handle503(Response response) {
         log.debug("Received 503 response, throwing QosException to trigger delayed retry");
         return new QosIoException(QosException.unavailable(), response.code());
+    }
+
+    private static IOException throwException(Response response, IOException e) throws IOException {
+        try (Response resp = response) {
+            throw e;
+        }
     }
 }
