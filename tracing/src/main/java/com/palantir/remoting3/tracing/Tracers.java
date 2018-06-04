@@ -102,7 +102,23 @@ public final class Tracers {
     public static Runnable wrap(Runnable delegate) {
         return new TracingAwareRunnable(delegate);
     }
-
+    
+    /**
+     * Wraps the provided executor service to make submitted tasks traceable with a fresh {@link Trace trace}
+     * for each execution, see {@link #wrapWithNewTrace(ExecutorService)}. This method should not be used to
+     * wrap a ScheduledExecutorService that has already been {@link #wrap(ExecutorService) wrapped}. If this is
+     * done, a new trace will be generated for each execution, effectively bypassing the intent of the previous
+     * wrapping.
+     */
+    public static ExecutorService wrapWithNewTrace(ExecutorService executorService) {
+        return new WrappingExecutorService(executorService) {
+            @Override
+            protected <T> Callable<T> wrapTask(Callable<T> callable) {
+                return wrapWithNewTrace(callable);
+            }
+        };
+    }
+    
     /**
      * Wraps the provided scheduled executor service to make submitted tasks traceable with a fresh {@link Trace trace}
      * for each execution, see {@link #wrapWithNewTrace(ScheduledExecutorService)}. This method should not be used to
